@@ -1,1 +1,0 @@
-# Dossier pour l'API FastAPI
