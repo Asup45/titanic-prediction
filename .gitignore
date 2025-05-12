@@ -24,10 +24,6 @@ venv/
 ENV/
 env/
 
-# Model files and data
-model/*.joblib
-model/*.pkl
-
 # Logs
 *.log
 
