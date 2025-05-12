@@ -15,6 +15,7 @@ from datetime import datetime
 import psycopg2
 import joblib
 import numpy as np
+import pandas as pd
 from psycopg2.extras import RealDictCursor
 from fastapi import FastAPI, HTTPException, Query, Depends, Body
 from fastapi.responses import JSONResponse
@@ -49,7 +50,7 @@ DB_CONFIG = {
     "host": "localhost",
     "database": "pipeline_db",
     "user": "postgres",
-    "password": "postgres",
+    "password": "Poiuytrezaqsd09!21",
     "port": 5432
 }
 
@@ -58,8 +59,11 @@ ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 # Liste des caractéristiques utilisées dans le modèle
 FEATURES = [
-    'pclass', 'sexe_male', 'age', 'sibsp', 'parch', 'tarif',
-    'embarq_c', 'embarq_q', 'embarq_s', 'taille_famille', 'seul'
+    'pclass', 'age', 'sibsp', 'parch', 'fare', 
+    'sex_male', 'sex_female', 
+    'embarked_S', 'embarked_C', 'embarked_Q', 
+    'title_Mr', 'title_Mrs', 'title_Miss', 'title_Master', 'title_Noble', 'title_Other', 
+    'family_size', 'is_alone'
 ]
 
 # Modèles de données Pydantic
@@ -70,6 +74,8 @@ class PredictionResult(BaseModel):
     confidence: float
     model_version: str
     timestamp: datetime
+    class Config:
+        protected_namespaces = ()
 
 class PredictionResponse(BaseModel):
     results: List[PredictionResult]
@@ -164,10 +170,10 @@ def get_predictions(
             
             # Requête pour récupérer les résultats
             cur.execute("""
-                SELECT id, processed_id, prediction_result, confidence, model_version, timestamp
+                SELECT id, processed_id, prediction_result, confidence, model_version, prediction_time AS timestamp
                 FROM prediction_results
                 WHERE confidence >= %s
-                ORDER BY timestamp DESC
+                ORDER BY prediction_time DESC
                 LIMIT %s OFFSET %s
             """, (min_confidence, limit, offset))
             
@@ -241,18 +247,24 @@ def get_prediction_by_id(
     finally:
         conn.close()
 
+def check_anomalies():
+    """
+    Vérifie les anomalies dans les métriques et génère des alertes.
+    """
+    try:
+        metrics = get_metrics()
+        avg_confidence = metrics.get("avg_confidence", 0.0)
+        if avg_confidence < 0.7:
+            logger.warning("⚠️ Confiance moyenne inférieure à 0.7 !")
+    except Exception as e:
+        logger.error(f"Erreur lors de la vérification des anomalies: {e}")
+
 @app.post("/predict", response_model=PredictionOutput, tags=["Prédiction Directe"])
 def predict_survival(
     passenger: PassengerInput = Body(...)
 ):
     """
     Effectue une prédiction de survie pour un nouveau passager.
-    
-    Args:
-        passenger (PassengerInput): Données du passager
-        
-    Returns:
-        PredictionOutput: Résultat de la prédiction
     """
     try:
         # Charger le modèle
@@ -265,25 +277,35 @@ def predict_survival(
         # Encodage des caractéristiques
         features = {
             'pclass': passenger.pclass,
-            'sexe_male': 1 if passenger.sexe.lower() == 'male' else 0,
             'age': passenger.age,
             'sibsp': passenger.sibsp,
             'parch': passenger.parch,
-            'tarif': passenger.tarif,
-            'embarq_c': 1 if passenger.embarquement.upper() == 'C' else 0,
-            'embarq_q': 1 if passenger.embarquement.upper() == 'Q' else 0,
-            'embarq_s': 1 if passenger.embarquement.upper() == 'S' else 0,
-            'taille_famille': taille_famille,
-            'seul': seul
+            'fare': passenger.tarif,
+            'sex_male': 1 if passenger.sexe.lower() == 'male' else 0,
+            'sex_female': 1 if passenger.sexe.lower() == 'female' else 0,
+            'embarked_S': 1 if passenger.embarquement.upper() == 'S' else 0,
+            'embarked_C': 1 if passenger.embarquement.upper() == 'C' else 0,
+            'embarked_Q': 1 if passenger.embarquement.upper() == 'Q' else 0,
+            'title_Mr': 1 if 'mr' in passenger.nom.lower() else 0,
+            'title_Mrs': 1 if 'mrs' in passenger.nom.lower() else 0,
+            'title_Miss': 1 if 'miss' in passenger.nom.lower() else 0,
+            'title_Master': 1 if 'master' in passenger.nom.lower() else 0,
+            'title_Noble': 1 if any(title in passenger.nom.lower() for title in ['sir', 'lady', 'countess', 'duke']) else 0,
+            'title_Other': 1 if not any(title in passenger.nom.lower() for title in ['mr', 'mrs', 'miss', 'master', 'sir', 'lady', 'countess', 'duke']) else 0,
+            'family_size': taille_famille,
+            'is_alone': seul
         }
         
-        # Créer un tableau de caractéristiques ordonné
-        X = np.array([[features.get(feat, 0) for feat in FEATURES]])
+        # Créer un DataFrame avec les noms des caractéristiques
+        X = pd.DataFrame([features], columns=FEATURES)
         
         # Faire la prédiction
         prediction = int(model.predict(X)[0])
         proba = model.predict_proba(X)[0]
         confidence = float(proba[prediction])
+
+        # Vérifier les anomalies
+        check_anomalies()
         
         # Préparer la réponse
         return PredictionOutput(
@@ -305,6 +327,34 @@ def predict_survival(
             status_code=500, 
             detail="Erreur lors de la prédiction"
         )
+
+@app.get("/metrics", tags=["Monitoring"])
+def get_metrics():
+    conn = get_db_connection()
+    """
+    Récupère les métriques de performance du modèle.
+    """
+    try:
+        with conn.cursor() as cur:
+            # Confiance moyenne
+            cur.execute("SELECT AVG(confidence) as avg_confidence FROM prediction_results")
+            avg_confidence = cur.fetchone()[0] or 0.0
+
+            # Distribution des classes
+            cur.execute("""
+                SELECT prediction_result->>'survived' as class, COUNT(*) as count
+                FROM prediction_results
+                GROUP BY class
+            """)
+            class_distribution = cur.fetchall()
+
+            return {
+                "avg_confidence": avg_confidence,
+                "class_distribution": {row[0]: row[1] for row in class_distribution}
+            }
+    except Exception as e:
+        logger.error(f"Erreur lors de la récupération des métriques: {e}")
+        raise HTTPException(status_code=500, detail="Erreur lors de la récupération des métriques")
 
 @app.get("/health", tags=["Statut"])
 def health_check():
@@ -346,4 +396,4 @@ def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) 
+    uvicorn.run("main:app", host="localhost", port=8000, reload=True) 

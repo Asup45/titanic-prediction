@@ -13,13 +13,14 @@ import threading
 import signal
 import psycopg2
 from psycopg2 import sql
+from scripts.processing.proc import ensure_tables_exist
 
 # Configuration de la base de données
 DB_CONFIG = {
     "host": "localhost",
     "database": "pipeline_db",
     "user": "postgres",
-    "password": "postgres",
+    "password": "Poiuytrezaqsd09!21",
     "port": 5432
 }
 
@@ -60,7 +61,8 @@ def create_database():
             port=DB_CONFIG["port"],
             user=DB_CONFIG["user"],
             password=DB_CONFIG["password"],
-            database="postgres"  # Base de données par défaut
+            database="postgres",  # Base de données par défaut
+            options="-c client_encoding=UTF8"
         )
         conn.autocommit = True
         cursor = conn.cursor()
@@ -95,6 +97,10 @@ def create_database():
         """)
         
         conn.close()
+
+        # Appeler ensure_tables_exist pour vérifier/créer les tables
+        ensure_tables_exist()
+
         return True
     except Exception as e:
         print(f"❌ Erreur lors de la création de la base de données: {e}")

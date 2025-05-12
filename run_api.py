@@ -18,7 +18,7 @@ def run_uvicorn():
     print("🚀 Démarrage de l'API FastAPI...")
     subprocess.run([
         sys.executable, "-m", "uvicorn", "api.main:app", 
-        "--host", "0.0.0.0", "--port", "8000", "--reload"
+        "--host", "localhost", "--port", "8000", "--reload"
     ])
 
 def check_requirements():

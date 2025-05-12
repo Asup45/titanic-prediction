@@ -33,7 +33,7 @@ DB_CONFIG = {
     "host": "localhost",
     "database": "pipeline_db",
     "user": "postgres",
-    "password": "postgres",
+    "password": "Poiuytrezaqsd09!21",
     "port": 5432
 }
 
@@ -73,7 +73,8 @@ def get_training_data() -> pd.DataFrame:
             
             # Ajouter les caractéristiques et les cibles
             for row in rows:
-                features = json.loads(row[1])
+                # Vérifier si les données sont déjà un dictionnaire
+                features = row[1] if isinstance(row[1], dict) else json.loads(row[1])
                 
                 # Vérifier si 'survived' est présent dans les caractéristiques
                 if 'survived' in features:

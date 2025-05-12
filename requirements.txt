@@ -19,3 +19,6 @@ plotly>=5.16.1
 
 # Utilitaires
 python-dotenv>=1.0.0 
+
+# Tests
+pytest>=8.3.5

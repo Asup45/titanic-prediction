@@ -29,7 +29,7 @@ DB_CONFIG = {
     "host": "localhost",
     "database": "pipeline_db",
     "user": "postgres",
-    "password": "postgres",
+    "password": "Poiuytrezaqsd09!21",
     "port": 5432
 }
 
@@ -85,9 +85,10 @@ def ensure_tables_exist() -> None:
                 cur.execute("""
                 CREATE TABLE IF NOT EXISTS prediction_results (
                     id SERIAL PRIMARY KEY,
-                    processed_data_id INTEGER REFERENCES processed_data(id),
-                    prediction BOOLEAN NOT NULL,
+                    processed_id INTEGER REFERENCES processed_data(id),
+                    prediction_result JSONB NOT NULL,
                     confidence FLOAT NOT NULL,
+                    model_version TEXT NOT NULL,
                     prediction_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
                 """)
@@ -138,6 +139,7 @@ def load_titanic_csv() -> pd.DataFrame:
                 return None
             
             df = pd.read_csv(csv_path)
+            df = df.fillna(np.nan).replace([np.nan], [None])
             logger.info(f"Fichier {csv_path} chargé avec succès. {len(df)} enregistrements trouvés.")
             
             # Insérer les données dans la table raw_data
@@ -167,12 +169,6 @@ def load_titanic_csv() -> pd.DataFrame:
         conn.close()
 
 def get_unprocessed_data() -> List[Tuple[int, Dict[str, Any]]]:
-    """
-    Récupère les données brutes non traitées de la base de données.
-    
-    Returns:
-        List[Tuple[int, Dict[str, Any]]]: Liste des données brutes non traitées avec leur ID
-    """
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -182,8 +178,8 @@ def get_unprocessed_data() -> List[Tuple[int, Dict[str, Any]]]:
             """)
             rows = cur.fetchall()
             
-            # Convertir les données JSON en dictionnaires Python
-            result = [(row[0], json.loads(row[1])) for row in rows]
+            # Convertir les données JSON en dictionnaires Python si nécessaire
+            result = [(row[0], row[1] if isinstance(row[1], dict) else json.loads(row[1])) for row in rows]
             
             logger.info(f"{len(result)} enregistrements non traités trouvés.")
             return result

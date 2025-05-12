@@ -168,6 +168,25 @@ def load_titanic_statistics():
     except Exception as e:
         st.error(f"Erreur lors du chargement des statistiques: {e}")
 
+def load_model_metrics():
+    """
+    Charge les métriques du modèle depuis le fichier metrics.json.
+    
+    Returns:
+        dict: Dictionnaire contenant les métriques ou None en cas d'erreur.
+    """
+    metrics_path = os.path.join(ROOT_DIR, "model", "metrics.json")
+    try:
+        if os.path.exists(metrics_path):
+            with open(metrics_path, "r") as f:
+                return json.load(f)
+        else:
+            st.error(f"Fichier metrics.json introuvable: {metrics_path}")
+            return None
+    except Exception as e:
+        st.error(f"Erreur lors du chargement des métriques: {e}")
+        return None
+
 # Interface utilisateur
 def main():
     # Barre latérale
@@ -186,7 +205,7 @@ def main():
         st.divider()
         
         # Navigation
-        page = st.radio("Navigation", ["Prédicteur", "Statistiques", "À propos"])
+        page = st.radio("Navigation", ["Prédicteur", "Statistiques", "Monitoring", "À propos"])
     
     # Page principale
     if page == "Prédicteur":
@@ -297,6 +316,31 @@ def main():
     elif page == "Statistiques":
         st.title("Statistiques sur le Titanic")
         load_titanic_statistics()
+
+    elif page == "Monitoring":
+        st.title("Monitoring du Modèle Titanic")
+        
+        # Charger les métriques du modèle
+        model_metrics = load_model_metrics()
+        if model_metrics:
+            st.subheader("Métriques du modèle (Entraînement)")
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric("Accuracy", f"{model_metrics['accuracy']:.2f}")
+            col2.metric("Precision", f"{model_metrics['precision']:.2f}")
+            col3.metric("Recall", f"{model_metrics['recall']:.2f}")
+            col4.metric("F1 Score", f"{model_metrics['f1']:.2f}")
+        else:
+            st.warning("Impossible de charger les métriques du modèle.")
+        
+        # Récupérer les métriques depuis l'API
+        st.subheader("Métriques en temps réel (Prédictions)")
+        response = requests.get(f"{API_URL}/metrics")
+        if response.status_code == 200:
+            metrics = response.json()
+            st.metric("Confiance moyenne", metrics["avg_confidence"])
+            st.bar_chart(metrics["class_distribution"])
+        else:
+            st.error("Erreur lors de la récupération des métriques depuis l'API.")
     
     else:  # Page "À propos"
         st.title("À propos")

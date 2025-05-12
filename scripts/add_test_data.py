@@ -24,7 +24,7 @@ DB_CONFIG = {
     "host": "localhost",
     "database": "pipeline_db",
     "user": "postgres",
-    "password": "postgres",
+    "password": "Poiuytrezaqsd09!21",
     "port": 5432
 }
 
