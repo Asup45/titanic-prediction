@@ -76,8 +76,8 @@ def get_training_data() -> pd.DataFrame:
                 # Vérifier si les données sont déjà un dictionnaire
                 features = row[1] if isinstance(row[1], dict) else json.loads(row[1])
                 
-                # Vérifier si 'survived' est présent dans les caractéristiques
-                if 'survived' in features:
+                # Vérifier si 'Survived' est présent dans les caractéristiques
+                if 'Survived' in features:
                     # Ajouter comme une nouvelle ligne dans le DataFrame
                     df = pd.concat([df, pd.DataFrame([features])], ignore_index=True)
             
@@ -130,7 +130,7 @@ def train_model(df: pd.DataFrame) -> Tuple[Any, Dict[str, float]]:
         # Sélectionner les caractéristiques et la cible
         feature_names = get_feature_names()
         X = df[feature_names]
-        y = df['survived']
+        y = df['Survived']
         
         # Division en ensembles d'entraînement et de test
         X_train, X_test, y_train, y_test = train_test_split(

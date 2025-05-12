@@ -1,11 +1,12 @@
 import pandas as pd
-from scripts.processing.proc import prepare_data  # Exemple de fonction de préparation
+import pytest
+from scripts.processing.proc import process_raw_data
 
 @pytest.fixture
 def raw_data():
-    return pd.read_csv("data/Titanic-Dataset.csv")
+    return pd.read_csv("data/Titanic-Test-Dataset.csv")
 
 def test_data_preparation(raw_data):
-    prepared_data = prepare_data(raw_data)
-    assert "features" in prepared_data.columns, "Les données préparées doivent contenir une colonne 'features'."
-    assert prepared_data["features"].notnull().all(), "Les colonnes 'features' ne doivent pas contenir de valeurs manquantes."
+    prepared_data = process_raw_data(1, raw_data.iloc[0].to_dict())
+    assert "features" in prepared_data, "Les données préparées doivent contenir une colonne 'features'."
+    assert isinstance(prepared_data["features"], dict), "La clé 'features' doit contenir un dictionnaire."

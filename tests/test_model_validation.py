@@ -1,4 +1,4 @@
-from joblib import load
+import json
 
 def test_model_validation():
     metrics_path = "model/metrics.json"

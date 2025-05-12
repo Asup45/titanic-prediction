@@ -31,7 +31,7 @@ jobs:
 
       # Étape 4 : Configurer PostgreSQL
       - name: Set up PostgreSQL
-        uses: Harmon758/postgresql-action@v2.0.0
+        uses: Harmon758/postgresql-action@v1
         with:
           postgresql version: '14'
           postgresql db: pipeline_db
@@ -41,4 +41,3 @@ jobs:
       # Étape 5 : Exécuter les tests
       - name: Run tests
         run: pytest tests/
-        

@@ -260,7 +260,8 @@ def process_raw_data(raw_id: int, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         if 'Survecu' in raw_data:
             features['survived'] = 1 if raw_data.get('Survecu') == 1 else 0
         
-        return features
+        return {'features': features}
+    
     except Exception as e:
         logger.error(f"Erreur lors du traitement des données brutes {raw_id}: {e}")
         return None
